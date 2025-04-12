@@ -1,0 +1,26 @@
+{
+  "name": "deployated",
+  "version": "1.0.0",
+  "description": "AI agent for automating CI/CD pipeline ",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/satvik-tan/Deployated.git"
+  },
+  "author": "satvik-tan, mayankaneja837",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/satvik-tan/Deployated/issues"
+  },
+  "homepage": "https://github.com/satvik-tan/Deployated#readme",
+  "dependencies": {
+    "fs": "^0.0.1-security",
+    "path": "^0.12.7"
+  },
+  "bin": {
+  "deployated": "./cli/index.js"
+}
+}
