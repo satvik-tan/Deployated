@@ -1,4 +1,5 @@
 
+
 import fs from 'fs';
 import axios from 'axios';
 import dotenv from 'dotenv';
@@ -71,3 +72,6 @@ export async function generateAndPushWorkflow(workflowYAML) {
   saveWorkflowToFile(workflowYAML);
   await pushWorkflowFile();
 }
+
+console.log("github repo")
+
