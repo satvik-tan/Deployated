@@ -1,31 +1,77 @@
+```yaml
 name: Deploy Node.js App
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - main # Or your main branch
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x, 20.x]
+
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Node.js
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
-          
+
       - name: Install dependencies
-        run: npm ci
-        
-      - name: Build
-        run: npm run build
-        
-      - name: Deploy to Render
+        run: npm install
+
+      - name: Run linters
+        run: npm run lint # or your lint command
+
+      - name: Run tests
+        run: npm test
+
+      - name: Deploy to Vercel (if VERCEL_TOKEN is set)
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }} # Required.
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }} # Required.
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }} # Required.
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+          alias-domains: your-app.com # Optional.  Comma separated.
+          production: true # Optional.  Defaults to false.
+          github-comment: true # Optional. Defaults to false.
+
+      - name: Deploy to Render (if RENDER_API_KEY and RENDER_SERVICE_ID are set)
+        if: ${{ secrets.RENDER_API_KEY != '' && secrets.RENDER_SERVICE_ID != '' }}
+        uses: actions/github-script@v6
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        run: |
-          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys"           -H "accept: application/json"           -H "authorization: Bearer ${{ secrets.RENDER_API_KEY }}"
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        with:
+          script: |
+            const fetch = require('node-fetch');
+            const apiKey = process.env.RENDER_API_KEY;
+            const serviceId = process.env.RENDER_SERVICE_ID;
+
+            const apiUrl = `https://api.render.com/v1/services/${serviceId}/deploy`;
+
+            const response = await fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+              },
+            });
+
+            if (response.ok) {
+              console.log('Render deployment triggered successfully!');
+            } else {
+              console.error('Failed to trigger Render deployment:', response.status, response.statusText);
+              const errorData = await response.text();
+              console.error('Error data:', errorData);
+              throw new Error(`Render deployment failed with status ${response.status}: ${response.statusText}`);
+            }
+```
