@@ -17,10 +17,12 @@
   },
   "homepage": "https://github.com/satvik-tan/Deployated#readme",
   "dependencies": {
+    "axios": "^1.8.4",
+    "dotenv": "^16.5.0",
     "fs": "^0.0.1-security",
     "path": "^0.12.7"
   },
   "bin": {
-  "deployated": "./cli/index.js"
-}
+    "deployated": "./cli/index.js"
+  }
 }
