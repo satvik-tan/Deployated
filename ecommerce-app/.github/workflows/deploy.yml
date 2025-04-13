@@ -1,0 +1,67 @@
+name: Deploy Node.js App to Vercel
+
+on:
+  push:
+    branches:
+      - main  # or your main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect Package Manager
+        id: detect-package-manager
+        run: |
+          if [ -f "yarn.lock" ]; then
+            echo "::set-output name=manager::yarn"
+          elif [ -f "pnpm-lock.yaml" ]; then
+            echo "::set-output name=manager::pnpm"
+          else
+            echo "::set-output name=manager::npm"
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Or your desired Node.js version
+          cache: ${{ steps.detect-package-manager.outputs.manager }}
+      
+      - name: Install Dependencies
+        id: install-dependencies
+        run: |
+          if [ "${{ steps.detect-package-manager.outputs.manager }}" == "yarn" ]; then
+            yarn install --frozen-lockfile
+          elif [ "${{ steps.detect-package-manager.outputs.manager }}" == "pnpm" ]; then
+            pnpm install --frozen-lockfile
+          else
+            npm ci
+          fi
+        
+      - name: Build Project
+        run: |
+          if [ "${{ steps.detect-package-manager.outputs.manager }}" == "yarn" ]; then
+            yarn build
+          elif [ "${{ steps.detect-package-manager.outputs.manager }}" == "pnpm" ]; then
+            pnpm build
+          else
+            npm run build
+          fi
+        env:
+          NEXT_PUBLIC_VERCEL_ENV: ${{ secrets.VERCEL_ENV }}
+          NEXT_PUBLIC_VERCEL_URL: ${{ secrets.VERCEL_URL }}
+
+      - name: Deploy to Vercel
+        uses: vercel/vercel-action@v0.15.0
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+          token: ${{ secrets.VERCEL_TOKEN }}
+          working-directory: ./
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

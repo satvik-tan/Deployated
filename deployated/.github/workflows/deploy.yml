@@ -1,0 +1,57 @@
+```yaml
+name: Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18 # Or your preferred Node.js version
+
+      - name: Install dependencies
+        run: npm install # Or yarn install, or pnpm install
+
+      - name: Build Unknown
+        run: |
+          #  These are just common build patterns; adjust as required for the  Unknown CLI tool
+          npm run build  || (echo "Build failed. Check for errors." && exit 1)
+          #  Or, if it's a single executable:
+          #  npm run package || (echo "Package failed. Check for errors." && exit 1)
+          #  If no explicit build step needed, remove this and the previous step.
+
+      - name: Deploy to Vercel
+        uses: vercel/vercel-action@v0.15.0
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          # Optional: Deploy specific project directory. Example: ./my-project
+          # scope: ./my-project
+          # Optional: Production deployment.
+          production: true
+        env:
+          #  Pass other environment variables to the deployment
+          #  IMPORTANT: Ensure any sensitive variables (like API keys) are stored as GitHub Secrets.
+          #  EXAMPLE_ENV_VAR: ${{ secrets.EXAMPLE_ENV_VAR }}
+
+      - name: Send Slack Notification on Failure
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: '#your-slack-channel'
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_TITLE: "Vercel Deployment Failed!"
+          SLACK_MESSAGE: "Deployment to Vercel failed for commit ${{ github.sha }}. Check the logs for details."
+          SLACK_COLOR: "danger"
+
+```

@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import { validateVercelCredentials, deployToVercel, getVercelDeploymentStatus } from '../../integrations/vercel.js';
 
 // Load .env file from the project root
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -23,30 +24,53 @@ export class BaseDeployer {
 export class VercelDeployer extends BaseDeployer {
   constructor(owner, repo, framework) {
     super(owner, repo, framework);
-    this.vercelToken = process.env.VERCEL_TOKEN;
-    this.vercelOrgId = process.env.VERCEL_ORG_ID;
-    this.vercelProjectId = process.env.VERCEL_PROJECT_ID;
+    console.log(`🔧 Initializing Vercel deployer for ${owner}/${repo}`);
   }
 
   async validate() {
-    if (!this.vercelToken) {
-      throw new Error('VERCEL_TOKEN not found in .env file');
-    }
-    if (!this.vercelOrgId) {
-      throw new Error('VERCEL_ORG_ID not found in .env file');
-    }
-    if (!this.vercelProjectId) {
-      throw new Error('VERCEL_PROJECT_ID not found in .env file');
-    }
-    return true;
+    console.log('🔍 Validating Vercel deployment configuration...');
+    return await validateVercelCredentials();
   }
 
   async deploy() {
-    await this.validate();
-    // Vercel deployment is handled by the GitHub Actions workflow
+    console.log('🚀 Starting Vercel deployment process...');
+    
+    const isValid = await this.validate();
+    if (!isValid) {
+      console.error('❌ Vercel validation failed. Please check your credentials.');
+      return {
+        success: false,
+        message: 'Vercel validation failed'
+      };
+    }
+
+    const deployment = await deployToVercel(this.owner, this.repo);
+    if (!deployment.success) {
+      console.error('❌ Vercel deployment failed');
+      return deployment;
+    }
+
+    // Poll for deployment status
+    console.log('⏳ Waiting for deployment to complete...');
+    let status = null;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      status = await getVercelDeploymentStatus(deployment.deploymentId);
+      if (status && status.status === 'READY') {
+        console.log('✅ Deployment completed successfully!');
+        break;
+      }
+      attempts++;
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between checks
+    }
+
     return {
       success: true,
-      message: 'Vercel deployment configured via GitHub Actions'
+      message: 'Vercel deployment completed',
+      url: deployment.url,
+      status: status?.status || 'UNKNOWN'
     };
   }
 }

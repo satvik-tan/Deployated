@@ -37,6 +37,34 @@ export async function getRepoContents(owner, repo, path = '') {
   }
 }
 
+export async function getFileContent(owner, repo, filePath) {
+  try {
+    const response = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
+      {
+        headers: {
+          Authorization: `Bearer ${GITHUB_TOKEN}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'Deployated-CLI'
+        }
+      }
+    );
+
+    // GitHub API returns base64 encoded content
+    const content = Buffer.from(response.data.content, 'base64').toString('utf8');
+    return content;
+  } catch (error) {
+    if (error.response) {
+      if (error.response.status === 404) {
+        throw new Error(`File ${filePath} not found in repository ${owner}/${repo}`);
+      } else if (error.response.status === 401) {
+        throw new Error('GitHub token is invalid or has insufficient permissions');
+      }
+    }
+    throw new Error(`Failed to fetch file content: ${error.message}`);
+  }
+}
+
 export function parseGitHubUrl(url) {
   try {
     // Remove .git extension if present

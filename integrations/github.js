@@ -80,10 +80,16 @@ export async function pushWorkflowToGitHub(owner, repo, workflowYAML) {
   const REMOTE_PATH = '.github/workflows/deploy.yml';
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${REMOTE_PATH}`;
   
-  // Save workflow locally first
-  saveWorkflowToFile(workflowYAML);
+  // Check if this is a local repository
+  const isLocalRepo = fs.existsSync('.git');
   
-  const content = encodeFileToBase64('deploy.yml');
+  // Only save locally if this is the current repository
+  if (isLocalRepo) {
+    saveWorkflowToFile(workflowYAML);
+  }
+  
+  // Encode the workflow content directly to base64
+  const content = Buffer.from(workflowYAML).toString('base64');
   const sha = await getExistingFileSha(owner, repo, REMOTE_PATH);
 
   const data = {
@@ -105,8 +111,10 @@ export async function pushWorkflowToGitHub(owner, repo, workflowYAML) {
 
     if ([200, 201].includes(res.status)) {
       console.log('🚀 Workflow pushed to GitHub!');
-      // Clean up local file
-      fs.unlinkSync('deploy.yml');
+      // Clean up local file if it was created
+      if (isLocalRepo && fs.existsSync('deploy.yml')) {
+        fs.unlinkSync('deploy.yml');
+      }
     } else {
       console.log('⚠️ Unexpected response:', res.status, res.data);
     }

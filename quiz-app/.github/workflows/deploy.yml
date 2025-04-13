@@ -1,0 +1,71 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main  # Or your main branch
+  pull_request:
+    branches:
+      - main  # Or your main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # Or your desired Node.js version
+
+      - name: Install dependencies
+        uses: actions/cache@v3
+        id: cache-dependencies
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-
+
+      - name: Install Dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: npm install
+
+      - name: Build
+        run: npm run build # Or your build command, e.g., npm run build
+
+      - name: Deploy to Vercel
+        uses: vercel/vercel-action@v0.15.0
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: .  # Replace with your project root if necessary
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+          environment: |
+            NODE_ENV=${{ secrets.NODE_ENV }}
+            MY_API_KEY=${{ secrets.MY_API_KEY }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Send Slack notification on success
+        if: success()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_COLOR: 'good'
+          SLACK_TITLE: "Deployment Successful"
+          SLACK_MESSAGE: "Deployment to Vercel was successful for commit ${{ github.sha }} on branch ${{ github.ref_name }}"
+
+      - name: Send Slack notification on failure
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_COLOR: 'danger'
+          SLACK_TITLE: "Deployment Failed"
+          SLACK_MESSAGE: "Deployment to Vercel failed for commit ${{ github.sha }} on branch ${{ github.ref_name }}"
